@@ -1,9 +1,17 @@
+from numpy.random import seed
+seed(1)
+import os,keras
+os.environ['CUDA_VISIBLE_DEVICES']='1'
+import tensorflow
+tensorflow.random.set_seed(2)
 import numpy as np
-import os
-import keras
+np.set_printoptions(threshold=np.inf)
+
+
+keras.backend.set_image_data_format('channels_last')
 from keras.layers import *
 from keras.models import *
-from keras.utils.vis_utils import plot_model                  # 可视化模型
+from keras.utils.vis_utils import plot_model   # 可视化模型
 from keras.models import load_model
 from keras.optimizers import Adam
 from metrics import evaluate_performance
@@ -11,10 +19,10 @@ from metrics import evaluate_performance
 np.set_printoptions(threshold=np.inf)                         # 设置打印时的输出方式
 keras.backend.set_image_data_format('channels_last')          # 返回默认图像的维度顺序
 
-os.environ["PATH"] += os.pathsep + 'E:\OneDrive\桌面\ResLSTM'  # 将模型输出可视化
+os.environ["PATH"] += os.pathsep + 'E:\OneDrive\桌面\文件\ResLSTM'  # 将模型输出可视化
 
 # 残差块结构设计
-def Unit(x, filters, pool=False):
+def Unit(x, filters, pool=False): # x：输入的矩阵 ；filters :卷积核数量； pool:是否进行池化操作
 	res = x
 	if pool:                                                                                    # 如果进行池化操作
 		x = MaxPooling2D(pool_size=(2, 2), padding="same")(x)                                   # 将输入进行最大池化操作，池化卷积核大小（2,2），使用same填充
@@ -55,11 +63,13 @@ def multi_input_model(time_lag):  # 构建多输入模型
     x1 = Dense(276)(x1)          # 进入全连接层，全连接操作
 
     # 第二模块输入操作
+
     x2 = Conv2D(filters=32, kernel_size=[3, 3], strides=[1, 1], padding="same")(input2_) # 进行卷积操作
     x2 = Unit(x2, 32)            # 第一个残差块操作
     x2 = Unit(x2, 64, pool=True) # 第二个残差块操作
     x2 = Flatten()(x2)           # 将多维数据一维化传入全连接层
     x2 = Dense(276)(x2)          # 进入全连接层，全连接操作
+
 
     # 第三模块输入操作
     x3 = Conv2D(filters=32, kernel_size=[3, 3], strides=[1, 1], padding="same")(input3_) # 进行卷积操作
@@ -102,7 +112,7 @@ def build_model(X_train_1,X_train_2,X_train_3,X_train_4,Y_train,X_test_1,X_test_
 	X_test_4 = X_test_4.reshape(X_test_4.shape[0],  11, time_lag-1, 1)
 	Y_test = Y_test.reshape(Y_test.shape[0], 276)
 
-	if epochs == 50:  #训练轮数
+	if epochs == 10:  #训练轮数
 		model = multi_input_model(time_lag) # 加载训练模型
 		model.compile(optimizer=Adam(), loss='mse', metrics=['mse']) # Keras训练模型之前,需要配置学习过程，参数为：优化器、损失函数、评估标准
 		# Adam优化是一种基于随机估计的一阶和二阶矩的随机梯度下降方法。
@@ -120,7 +130,7 @@ def build_model(X_train_1,X_train_2,X_train_3,X_train_4,Y_train,X_test_1,X_test_
 		output = model.predict([X_test_1, X_test_2, X_test_3, X_test_4], batch_size=batch_size)  # 预测值的输出
 	else:
 		# 每训练10次加载一下模型
-		model = load_model('TestResult/'+str(epochs-10)+'_model_graph.h5')
+		model = load_model('E:/OneDrive/桌面/文件/ResLSTM/TestResult/'+str(epochs-10)+'-model-with-graph.h5')
 		model.fit([X_train_1, X_train_2, X_train_3, X_train_4], Y_train, batch_size=batch_size, epochs=10, verbose=2, shuffle=False)# , validation_split=0.05
 		output = model.predict([X_test_1, X_test_2, X_test_3, X_test_4], batch_size=batch_size)
 
@@ -136,6 +146,4 @@ def build_model(X_train_1,X_train_2,X_train_3,X_train_4,Y_train,X_test_1,X_test_
 	# 可视化模型结构
 	plot_model(model, to_file='Design/model.png', show_shapes=True)
 	return model,Y_test_original,predictions,RMSE,R2,MAE,WMAPE # 返回模型以及各类误差值
-
-
 
